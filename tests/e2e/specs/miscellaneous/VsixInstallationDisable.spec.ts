@@ -62,11 +62,10 @@ suite(`Verify VSIX installation can be disabled via configuration ${BASE_TEST_CO
 	const COMMAND_PALETTE_LIST: By = By.css('.monaco-list');
 	const COMMAND_PALETTE_ITEMS: By = By.css('.monaco-list-row');
 	const QUICK_PICK_INSTALL_FROM_VSIX: By = By.xpath(
-		"//div[contains(@class,'monaco-list-row')]//span[contains(text(),'Install from VSIX')] | //div[contains(@class,'monaco-list-row')][contains(@aria-label,'Install from VSIX')]"
+		'//div[contains(@class,"monaco-list-row")]//span[contains(text(),"Install from VSIX")] | //div[contains(@class,"monaco-list-row")][contains(@aria-label,"Install from VSIX")]'
 	);
-	const VSIX_CONTEXT_MENU_ITEM: By = By.xpath('"//span[@aria-label=\'Install Extension VSIX\']"');
-	const MONACO_MENU: By = By.css('.monaco-menu');
-	const CONTEXT_MENU_ITEMS: By = By.css('.monaco-menu .action-label');
+	const VSIX_CONTEXT_MENU_ITEM: By = By.xpath('//span[@aria-label="Install Extension VSIX"]');
+	const MONACO_MENU_CONTAINER: By = By.css('.monaco-menu-container');
 
 	function getConfigMapPath(filename: string): string {
 		return path.join(resourcesPath, filename);
@@ -177,41 +176,26 @@ suite(`Verify VSIX installation can be disabled via configuration ${BASE_TEST_CO
 				Logger.warn(`Could not find ${vsixFileName} file in explorer`);
 				return;
 			}
-			await vsixFileItem.openContextMenu();
-			const menuVisible: boolean = await driverHelper.waitVisibilityBoolean(MONACO_MENU, 5, 1000);
 
+			Logger.info(`Found VSIX file: ${vsixFileName}, opening context menu...`);
+			await vsixFileItem.openContextMenu();
+
+			const menuVisible: boolean = await driverHelper.waitVisibilityBoolean(MONACO_MENU_CONTAINER, 5, 1000);
 			if (!menuVisible) {
 				throw new Error('Context menu not visible after right-click');
 			}
 
-			const contextMenuItems: WebElement[] = await driverHelper.getDriver().findElements(CONTEXT_MENU_ITEMS);
-			const contextMenuTexts: string[] = [];
+			// check for VSIX installation option
+			const vsixOptionPresent: boolean = await driverHelper.waitVisibilityBoolean(VSIX_CONTEXT_MENU_ITEM, 5, 1000);
 
-			for (const item of contextMenuItems) {
-				try {
-					// try both text content and aria-label
-					let text: string = await item.getText();
-					if (!text.trim()) {
-						text = (await item.getAttribute('aria-label')) || '';
-					}
-					if (text.trim()) {
-						contextMenuTexts.push(text.trim());
-					}
-				} catch (err) {
-					// continue
-				}
-			}
-
-			Logger.info(`Context menu items: ${contextMenuTexts.join(', ')}`);
-
-			// check for VSIX item with enhanced selector
-			const installVsixPresent: boolean = await driverHelper.waitVisibilityBoolean(VSIX_CONTEXT_MENU_ITEM, 5, 1000);
-			expect(installVsixPresent).to.equal(shouldExist);
-
-			await driverHelper.getDriver().actions().sendKeys(Key.ESCAPE).perform();
+			Logger.info(`VSIX option present: ${vsixOptionPresent}, Expected: ${shouldExist}`);
+			expect(vsixOptionPresent).to.equal(shouldExist);
 		} catch (error) {
 			Logger.error(`Error in context menu test: ${error}`);
 			throw error;
+		} finally {
+			await driverHelper.getDriver().actions().sendKeys(Key.ESCAPE).perform();
+			await driverHelper.wait(500);
 		}
 	}
 
